@@ -32,6 +32,8 @@ namespace DemoApp
             InitializeComponent();
             MainDataGrid.ItemsSource = _displayedDevices;
             LoadData();
+
+
         }
 
         private void LoadData()
@@ -71,18 +73,56 @@ namespace DemoApp
 
         private void CreateButton_Click(object sender, RoutedEventArgs e)
         {
+
             var win = new EditorWindow(null);
-            win.Show();
+            if  (win.ShowDialog() == true)
+            {
+                _allDevices.Add(win.CurrentDevice);
+                _displayedDevices.Add(win.CurrentDevice);
+
+                DataManager.SaveData<Device>(_allDevices, filePath );
+            }
         }
 
         private void UpdateButton_Click(object sender, RoutedEventArgs e)
         {
+            if (MainDataGrid.SelectedItem is Device selectedDevice)
+            {
+                var win = new EditorWindow(selectedDevice);
+                if (win.ShowDialog() == true)
+                {
+                    DataManager.SaveData<Device>(_allDevices, filePath);
+                }
 
+            }
+            else
+                MessageBox.Show("Выберите запись для редактирования");
         }
 
         private void DeleteButton_Click(object sender, RoutedEventArgs e)
         {
+            if (MainDataGrid.SelectedItem is Device selectedDevice)
+            {
+                // Спрашиваем подтверждение
+                var result = MessageBox.Show($"Вы уверены, что хотите удалить '{selectedDevice.Name}'?",
+                                             "Подтверждение удаления",
+                                             MessageBoxButton.YesNo,
+                                             MessageBoxImage.Question);
 
+                if (result == MessageBoxResult.Yes)
+                {
+                    _allDevices.Remove(selectedDevice);
+                    _displayedDevices.Remove(selectedDevice); // Убираем из интерфейса
+
+                    DataManager.SaveData(_allDevices, filePath); // Сохраняем в JSON
+                }
+            }
+        }
+
+        private void ReportButton_Click(object sender, RoutedEventArgs e)
+        {
+            var win = new ReportWindow(_allDevices);
+            win.Show();
         }
     }
 }

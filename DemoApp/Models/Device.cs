@@ -34,6 +34,10 @@ namespace DemoApp.Models
             get => _price;
             set
             {
+                if(value < 0)
+                {
+                    throw new ArgumentException("цена не может быть отрицательной");
+                }
                 _price = value;
                 OnPropertyChanged();
             }

@@ -22,9 +22,7 @@ namespace DemoApp
     /// </summary>
     public partial class EditorWindow : Window
     {
-        private Dictionary<DeviceType, string> TypesToComboBox; //значения для combobox из перечисления
         public Device CurrentDevice { get; set; } //открытие свойство окна для редактирования записи
-        private int SelectedStatusId = 0; //по умолчанию 1 элемент словаря в качестве выбранного типа
         public EditorWindow(Device device)
         {
             InitializeComponent();
@@ -35,12 +33,12 @@ namespace DemoApp
 
             // Заполняем текстовые поля текущими значениями
             NameTextBox.Text = CurrentDevice.Name;
-            SelectedStatusId = (int)CurrentDevice.Type;
+            TypeTextBox.Text = CurrentDevice.Type.ToString();
             PriceTextBox.Text = CurrentDevice.Price.ToString();
             InUseCheckBox.IsChecked = CurrentDevice.IsInUse;
         }
 
-      
+
         private void CancelButton_Click(object sender, RoutedEventArgs e)
         {
             // Закрываем без сохранения
@@ -50,29 +48,79 @@ namespace DemoApp
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
-            // Переносим данные из полей ввода обратно в объект
-            CurrentDevice.Name = NameTextBox.Text;
-          //  CurrentDevice.Type = TypeTextBox.Text;
+            bool isValid = true;
 
-            // Пытаемся безопасно распарсить число (в следующей практике добавим валидацию ошибок)
-            if (decimal.TryParse(PriceTextBox.Text, out decimal price))
+            if (string.IsNullOrWhiteSpace(NameTextBox.Text)) //проверка корректности названия
             {
-                CurrentDevice.Price = price;
+                NameTextBox.BorderBrush = Brushes.Red; // рамка красная
+                isValid = false;
             }
 
-            CurrentDevice.IsInUse = InUseCheckBox.IsChecked == true;
+            else if (string.IsNullOrWhiteSpace(TypeTextBox.Text)) //проверка корректности типа устройства
+            {
+                TypeTextBox.BorderBrush = Brushes.Red;
+                isValid = false;
+            }
 
-            // Говорим окну, что результат успешный, и закрываем его
-            DialogResult = true;
-            Close();
+            //проверка корректности цены (возможно преобразование в decimal)
+            else if (!Decimal.TryParse(PriceTextBox.Text, out decimal price))
+            {
+                PriceTextBox.BorderBrush = Brushes.Red;
+                isValid = false;
+            }
+
+            //во всех остальных случаях ввод корректный - сбрасываем сцета рамок и сохраняем данные
+            else
+            {
+                PriceTextBox.ClearValue(Border.BorderBrushProperty);
+                TypeTextBox.ClearValue(Border.BorderBrushProperty);
+                NameTextBox.ClearValue(Border.BorderBrushProperty);
+
+                try
+                {
+                    CurrentDevice.Name = NameTextBox.Text;
+                    CurrentDevice.Type = StringToEnum(TypeTextBox.Text);
+                    //decimal.Parse, который сам выбросит FormatException, если текст содержит буквы
+                    CurrentDevice.Price = decimal.Parse(PriceTextBox.Text);
+                    CurrentDevice.IsInUse = InUseCheckBox.IsChecked == true;
+
+                    // Говорим окну, что результат успешный, и закрываем его
+                    DialogResult = true;
+                    Close();
+                }
+
+                catch(FormatException) // Ловим ошибку конвертации числа
+                {
+                    PriceTextBox.BorderBrush = Brushes.Red;
+                    MessageBox.Show("Поле 'Цена' должно содержать только числа.", 
+                        "Ошибка формата", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+
+                catch (ArgumentException ex) // Ловим нашу собственную ошибку из сеттера модели
+                {
+                    PriceTextBox.BorderBrush = Brushes.Red;
+                    MessageBox.Show(ex.Message, "Логическая ошибка", 
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                catch (Exception ex) // Глобальный перехватчик любых других непредвиденных ошибок
+                {
+                    MessageBox.Show($"Произошла неизвестная ошибка: {ex.Message}", 
+                        "Критическая ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }           
         }
 
-        //метод для конвертации значения перечислени в словарь
-        private Dictionary<TEnum, string> ToDictionary<TEnum>() where TEnum : struct, Enum
+        private DeviceType StringToEnum(string text)
         {
-            return Enum.GetValues<TEnum>()
-                .ToDictionary(e => e, e => e.ToString());
+            switch(text.ToLower())
+            {
+                case "Персональный компьютер": return DeviceType.PC; 
+                case "Ноутбук": return DeviceType.Laptop; 
+                case "Телефон": return DeviceType.Phone; 
+                case "Принтер": return DeviceType.Printer; 
+                case "Не установлен": return DeviceType.Unknown; 
+                default: return DeviceType.Unknown; 
+            }
         }
-
     }
 }
